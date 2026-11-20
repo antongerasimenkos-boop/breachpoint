@@ -1,0 +1,5 @@
+std = "roblox"
+
+[lints]
+# Luau type annotations make shadowing in small scopes intentional and readable.
+shadowing = "allow"

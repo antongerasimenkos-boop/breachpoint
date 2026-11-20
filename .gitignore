@@ -1,0 +1,18 @@
+# Build output
+/build/
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxm
+*.rbxmx
+
+# Tool caches
+/roblox.yml
+sourcemap.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
