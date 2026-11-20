@@ -1,0 +1,96 @@
+--!strict
+local roblox = require("@lune/roblox")
+local t = require("../src/t")
+
+return function(kit: any)
+	local describe, it, expect = kit.describe, kit.it, kit.expect
+
+	local function ok(check, value)
+		return (check(value))
+	end
+
+	describe("t", function()
+		it("number rejects NaN, infinity and non-numbers", function()
+			expect(ok(t.number, 1.5)).toBe(true)
+			expect(ok(t.number, 0 / 0)).toBe(false)
+			expect(ok(t.number, math.huge)).toBe(false)
+			expect(ok(t.number, -math.huge)).toBe(false)
+			expect(ok(t.number, "1")).toBe(false)
+		end)
+
+		it("integer enforces wholeness and bounds", function()
+			local check = t.integer(-2, 2)
+			expect(ok(check, 0)).toBe(true)
+			expect(ok(check, 2)).toBe(true)
+			expect(ok(check, 3)).toBe(false)
+			expect(ok(check, 1.5)).toBe(false)
+			expect(ok(check, 0 / 0)).toBe(false)
+		end)
+
+		it("numberRange is inclusive", function()
+			local check = t.numberRange(0, 1)
+			expect(ok(check, 0)).toBe(true)
+			expect(ok(check, 1)).toBe(true)
+			expect(ok(check, 1.0001)).toBe(false)
+		end)
+
+		it("string enforces type, length and UTF-8", function()
+			local check = t.string(5)
+			expect(ok(check, "hello")).toBe(true)
+			expect(ok(check, "hello!")).toBe(false)
+			expect(ok(check, "\xff\xfe")).toBe(false)
+			expect(ok(check, 5)).toBe(false)
+		end)
+
+		it("literal accepts only listed values", function()
+			local check = t.literal("Wood", "Stone")
+			expect(ok(check, "Wood")).toBe(true)
+			expect(ok(check, "Gold")).toBe(false)
+			expect(ok(check, nil)).toBe(false)
+		end)
+
+		it("vector3 requires finite components", function()
+			expect(ok(t.vector3, roblox.Vector3.new(1, 2, 3))).toBe(true)
+			expect(ok(t.vector3, roblox.Vector3.new(0 / 0, 0, 0))).toBe(false)
+			expect(ok(t.vector3, { X = 1, Y = 2, Z = 3 })).toBe(false)
+		end)
+
+		it("optional allows nil but still checks values", function()
+			local check = t.optional(t.boolean)
+			expect(ok(check, nil)).toBe(true)
+			expect(ok(check, true)).toBe(true)
+			expect(ok(check, 1)).toBe(false)
+		end)
+
+		it("union accepts any matching check", function()
+			local check = t.union(t.boolean, t.string(3))
+			expect(ok(check, false)).toBe(true)
+			expect(ok(check, "abc")).toBe(true)
+			expect(ok(check, 1)).toBe(false)
+		end)
+
+		it("array rejects holes, extra keys and oversize input", function()
+			local check = t.array(t.integer(), 3)
+			expect(ok(check, { 1, 2, 3 })).toBe(true)
+			expect(ok(check, { 1, 2, 3, 4 })).toBe(false)
+			local holes: { [number]: number } = { [1] = 1, [3] = 3 }
+			expect(ok(check, holes)).toBe(false)
+			expect(ok(check, { [1] = 1, x = 1 } :: any)).toBe(false)
+			expect(ok(check, { 1, "2" } :: any)).toBe(false)
+		end)
+
+		it("strictInterface rejects unknown keys and validates fields", function()
+			local check = t.strictInterface({ id = t.integer(1), note = t.optional(t.string(10)) })
+			expect(ok(check, { id = 1 })).toBe(true)
+			expect(ok(check, { id = 1, note = "hi" })).toBe(true)
+			expect(ok(check, { id = 1, admin = true } :: any)).toBe(false)
+			expect(ok(check, { id = 0 })).toBe(false)
+			expect(ok(check, "nope")).toBe(false)
+		end)
+
+		it("returns a readable reason on failure", function()
+			local _, reason = t.integer(0, 1)(5)
+			expect(reason).toContain("out of range")
+		end)
+	end)
+end
